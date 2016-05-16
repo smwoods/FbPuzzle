@@ -2,11 +2,11 @@ package spreadsheet;
 
 import java.util.Stack;
 import java.util.EmptyStackException;
+import java.util.Arrays;
+import java.util.List;
 
 public class PostfixNotationCalculator {
 	private Stack<Double> stack;
-	private double x;
-	private double y;
 
 	public PostfixNotationCalculator() {
 		stack = new Stack<Double>();
@@ -15,8 +15,8 @@ public class PostfixNotationCalculator {
 	public void evaluateCell(Cell cell) {
 		try {
 			stack.clear();
-			// compare to scanner
-			String[] tokens = cell.getValueExpression().split("\\s+");
+
+			List<String> tokens = Arrays.asList(cell.getValueExpression().split("\\s+"));
 			for (String token : tokens) {
 				switch (token) {
 					case "+": add(); break;
@@ -49,26 +49,26 @@ public class PostfixNotationCalculator {
 	}
 
 	private void add() {
-		y = stack.pop();
-		x = stack.pop();
+		double y = stack.pop();
+		double x = stack.pop();
 		stack.push(x + y);
 	}
 
 	private void subtract() {
-		y = stack.pop();
-		x = stack.pop();
+		double y = stack.pop();
+		double x = stack.pop();
 		stack.push(x - y);
 	}
 
 	private void multiply() {
-		y = stack.pop();
-		x = stack.pop();
+		double y = stack.pop();
+		double x = stack.pop();
 		stack.push(x * y);
 	}
 
 	private void divide() {
-		y = stack.pop();
-		x = stack.pop();
+		double y = stack.pop();
+		double x = stack.pop();
 		if (y == 0) {
 			throw new ArithmeticException();
 		}

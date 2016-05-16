@@ -97,4 +97,8 @@ public class Cell {
 	public Boolean isDummy() {
 		return isDummy;
 	}
+
+	
+
+
 }

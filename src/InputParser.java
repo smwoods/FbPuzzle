@@ -4,6 +4,9 @@ import java.io.File;
 import java.io.BufferedReader;
 import java.io.FileReader;
 
+import java.util.Arrays;
+import java.util.List;
+
 
 public class InputParser {
 
@@ -21,11 +24,13 @@ public class InputParser {
 		    BufferedReader reader = new BufferedReader(new FileReader(inputFile));
 		    String line = null;
 		    int currentRowNumber = 1;
+
 		    while ((line = reader.readLine()) != null) {
 		        parseRow(currentRowNumber, line);
 		        currentRowNumber++;
 		    }
 		    spreadsheet.setRowCount(currentRowNumber - 1);
+
 		} catch (Exception e) {
 		    System.out.println("Error: Input file could not be read.");
 			System.exit(1);
@@ -33,21 +38,22 @@ public class InputParser {
 	}
 
 	private void parseRow(int rowNumber, String text) {
-		//REPLACE WITH List<String> or scanner
-		String[] cells = text.split("\\s*,\\s*");
-		if (cells.length == 0) {
+		List<String> cellValueExpressions = Arrays.asList(text.split("\\s*,\\s*"));
+
+		if (cellValueExpressions.size() == 0) {
 			System.out.println("Error: Empty row.");
 			System.exit(1);
 		}
+
 		if (rowNumber == 1) {
-			spreadsheet.setColumnCount(cells.length);
-		} else if (cells.length != spreadsheet.getColumnCount()) {
+			spreadsheet.setColumnCount(cellValueExpressions.size());
+		} else if (cellValueExpressions.size() != spreadsheet.getColumnCount()) {
 			System.out.println("Error: All rows must have the same length.");
 			System.exit(1);
 		}
 
-		for (int i = 0; i < cells.length; i++) {
-			spreadsheet.insert(rowNumber, i + 1, cells[i]);
+		for (int i = 0; i < cellValueExpressions.size(); i++) {
+			spreadsheet.insert(rowNumber, i + 1, cellValueExpressions.get(i));
 		}
 	}
 
