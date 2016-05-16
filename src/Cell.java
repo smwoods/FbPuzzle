@@ -13,21 +13,19 @@ public class Cell {
 	private LinkedList<String> outgoingEdges;
 	private Boolean isDummy;
 
-	public Cell(String cellCoordinates) {
-		coordinates = cellCoordinates;
-		outgoingEdges = new LinkedList<String>();
-		isDummy = true;
-	}
-
-	public Cell(String cellCoordinates, String expression) {
-		coordinates = cellCoordinates;
-		valueExpression = expression;
+	public Cell(String coordinates, String valueExpression) {
+		this.coordinates = coordinates;
+		this.valueExpression = valueExpression;
 		outgoingEdges = new LinkedList<String>();
 		incomingEdgeCount = 0;
 		isDummy = false;
 	}
 
-	
+	public Cell(String coordinates) {
+		isDummy = true;
+		this.coordinates = coordinates;
+		outgoingEdges = new LinkedList<String>();
+	}
 
 	public String getCoordinates() {
 		return coordinates;
@@ -39,6 +37,29 @@ public class Cell {
 
 	public void setValueExpression(String expression) {
 		valueExpression = expression;
+	}
+
+	// Extracts the cell references from the value expression, sets the
+	// incomingEdgeCount based on the number of unique references, and 
+	// returns the list of reference coordinates
+	public LinkedList<String> parseValueExpressionReferences() {
+		LinkedList<String> edges = new LinkedList<String>();
+		Pattern cellCoordinatesPattern = Pattern.compile("(?<=(^|\\s+))[A-Z]+\\d+(?=(\\s+|$))");
+		Matcher cellCoordinatesMatcher = cellCoordinatesPattern.matcher(valueExpression);
+		while (cellCoordinatesMatcher.find()) {
+			String edge = cellCoordinatesMatcher.group().trim();
+			if (!edges.contains(edge)) {
+				if (edge != coordinates) {
+					edges.add(edge);
+				} else {
+					System.out.println("Error: A cell cannot reference itself.");
+					System.exit(1);
+				}
+			}
+			
+ 		}
+ 		incomingEdgeCount = edges.size();
+ 		return edges;
 	}
 
 	public int getIncomingEdgeCount() {
@@ -65,15 +86,7 @@ public class Cell {
 		outgoingEdges.add(destination);
 	}
 
-	public Double getCalculatedValue() {
-		return calculatedValue;
-	}
-
 	public String getCalculatedValueAsString() {
-		if (calculatedValue == null) {
-			System.err.println("This cell has not yet been evaluated");
-			return null;
-		}
 		return calculatedValue.toString();
 	}
 
@@ -81,32 +94,7 @@ public class Cell {
 		calculatedValue = value;
 	}
 
-	public LinkedList<String> parseValueExpressionForIncomingEdges() {
-		LinkedList<String> edges = new LinkedList<String>();
-		Pattern cellIndexPattern = Pattern.compile("(?<=(^|\\s+))[A-Z]\\d+(?=(\\s+|$))");
-		Matcher cellMatcher = cellIndexPattern.matcher(valueExpression);
-		while (cellMatcher.find()) {
-			String edge = cellMatcher.group().trim();
-			if (!edges.contains(edge)) {
-				if (edge != coordinates) {
-					edges.add(edge);
-				} 
-				else {
-					//handle error
-					System.err.println("Error: A cell cannot reference itself");
-				}
-			}
-			
- 		}
- 		incomingEdgeCount = edges.size();
- 		return edges;
-	}
-
 	public Boolean isDummy() {
 		return isDummy;
 	}
-
-	
-
-
 }

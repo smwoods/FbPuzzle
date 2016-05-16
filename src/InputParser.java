@@ -4,49 +4,51 @@ import java.io.File;
 import java.io.BufferedReader;
 import java.io.FileReader;
 
-public class InputParser {
-	String inputFilePath;
-	Spreadsheet spreadsheet;
 
-	public InputParser(String inFilePath, Spreadsheet spreadsheetToFill) {
-		inputFilePath = inFilePath;
-		spreadsheet = spreadsheetToFill;
+public class InputParser {
+
+	private String inputFilePath;
+	private Spreadsheet spreadsheet;
+
+	public InputParser(String inputFilePath, Spreadsheet spreadsheet) {
+		this.inputFilePath = inputFilePath;
+		this.spreadsheet = spreadsheet;
 	}
 
-	public void parseInputFileAndFillSpreadsheet() {
-		File inFile = new File(inputFilePath);
+	public void parseInputAndFillSpreadsheet() {
 		try {
-		    BufferedReader reader = new BufferedReader(new FileReader(inFile));
+			File inputFile = new File(inputFilePath);
+		    BufferedReader reader = new BufferedReader(new FileReader(inputFile));
 		    String line = null;
-		    int currentRow = 1;
+		    int currentRowNumber = 1;
 		    while ((line = reader.readLine()) != null) {
-		        parseRow(currentRow, line);
-		        currentRow++;
+		        parseRow(currentRowNumber, line);
+		        currentRowNumber++;
 		    }
-		    spreadsheet.setRowCount(currentRow - 1);
+		    spreadsheet.setRowCount(currentRowNumber - 1);
 		} catch (Exception e) {
-		    e.printStackTrace();
+		    System.out.println("Error: Input file could not be read.");
+			System.exit(1);
 		}
 	}
 
 	private void parseRow(int rowNumber, String text) {
+		//REPLACE WITH List<String> or scanner
 		String[] cells = text.split("\\s*,\\s*");
-		if (spreadsheet.getColumnCount() > 0) {
-			if (cells.length != spreadsheet.getColumnCount()) {
-				System.out.println("Error: row is incomplete");
-			}
+		if (cells.length == 0) {
+			System.out.println("Error: Empty row.");
+			System.exit(1);
 		}
-		else {
+		if (rowNumber == 1) {
 			spreadsheet.setColumnCount(cells.length);
-		}
-		if (cells.length > 0) {
-			for (int i = 0; i < cells.length; i++) {
-				// CHANGE THIS!!
-				String coordinates = spreadsheet.generateCoordinates(rowNumber, i + 1);
-				spreadsheet.insert(coordinates, cells[i]);
-			}
+		} else if (cells.length != spreadsheet.getColumnCount()) {
+			System.out.println("Error: All rows must have the same length.");
+			System.exit(1);
 		}
 
+		for (int i = 0; i < cells.length; i++) {
+			spreadsheet.insert(rowNumber, i + 1, cells[i]);
+		}
 	}
 
 	

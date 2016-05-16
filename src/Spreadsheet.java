@@ -7,28 +7,30 @@ import java.io.File;
 
 
 public class Spreadsheet {
-	private HashMap<String, Cell> cellDictionary;
+	private HashMap<String, Cell> cellsByCoordinates;
 	private LinkedList<String> evaluationOrder;
 	private PostfixNotationCalculator calculator;
 	private int rowCount;
 	private int columnCount;
 
 	public Spreadsheet() {
-		cellDictionary = new HashMap<String, Cell>();
+		cellsByCoordinates = new HashMap<String, Cell>();
 		evaluationOrder = new LinkedList<String>();
 		calculator = new PostfixNotationCalculator();
 		rowCount = 0;
 		columnCount = 0;
 	}
 
-	public void insert(String coordinates, String expression) {
+	public void insert(int row, int col, String expression) {
+		String coordinates = generateCoordinates(row, col);
 		Cell newCell = new Cell(coordinates, expression);
-		if (cellDictionary.containsKey(newCell.getCoordinates())) {
+
+		if (cellsByCoordinates.containsKey(newCell.getCoordinates())) {
 			mergeWithDummyCell(newCell);
-		} 
-		else {
-			cellDictionary.put(newCell.getCoordinates(), newCell);
+		} else {
+			cellsByCoordinates.put(newCell.getCoordinates(), newCell);
 		}
+
 		if (!newCell.isDummy()) {
 			addCellEdgesToGraph(newCell);
 			if (newCell.getIncomingEdgeCount() == 0) {
@@ -37,45 +39,42 @@ public class Spreadsheet {
 		}
 	}
 
-	public void solve() {
-		evaluateCellsInTopologicalOrder();
+	public void evaluateCellsInTopologicalOrder() {
+		int cellsEvaluatedCount = 0;
+		while (evaluationOrder.size() > 0) {
+			Cell currentCell = cellsByCoordinates.get(evaluationOrder.pop());
+			replaceReferencesWithValues(currentCell);
+			calculator.evaluateCell(currentCell);
+			removeOutgoingEdges(currentCell);
+			cellsEvaluatedCount++;
+		}
+		if (cellsEvaluatedCount < cellsByCoordinates.size()) {
+			System.out.println("Error: Cyclic cell dependency.");
+			System.exit(1);
+		}
 	}
 
 	public void writeResultsToFile(String outFilePath) {
-		File outFile = new File(outFilePath);
-		PrintWriter writer = null;
 		try {
-            writer = new PrintWriter(outFile, "UTF-8");
+			File outFile = new File(outFilePath);
+            PrintWriter writer = new PrintWriter(outFile, "UTF-8");
+            for (int row = 1; row <= rowCount; row++) {
+				for (int col = 1; col <= columnCount; col++) {
+					String coordinates = generateCoordinates(row, col);
+					Cell cell = cellsByCoordinates.get(coordinates);
+					writer.print(cell.getCalculatedValueAsString());
+					if (col < columnCount) {
+						writer.print(",");
+					}
+				}
+				writer.println();
+			}
+			writer.close();
         }
         catch (Exception e){
-            e.printStackTrace();
+            System.out.println("Error: Output file could not be created.");
+			System.exit(1);
         }
-		
-		for (int row = 1; row <= rowCount; row++) {
-			for (int col = 1; col <= columnCount; col++) {
-				System.out.println(String.format("row, col: %d, %d", row, col));
-				String coordinates = generateCoordinates(row, col);
-				Cell cell = cellDictionary.get(coordinates);
-				writer.print(cell.getCalculatedValueAsString());
-				if (col < columnCount) {
-					writer.print(",");
-				}
-			}
-			writer.println();
-		}
-		writer.close();
-	}
-
-	public String generateCoordinates(int row, int column) {
-		String columnCoordinate = "";
-	    while (column > 0) {
-	    	column--;
-			int remainder = column % 26;
-			char letter = (char) (remainder + 65);
-			columnCoordinate = letter + columnCoordinate;
-			column = (column - remainder) / 26;
-	    }
-	    return columnCoordinate + Integer.toString(row);
 	}
 
 	public int getRowCount() {
@@ -94,78 +93,64 @@ public class Spreadsheet {
 		columnCount = count;
 	}
 
+    private String generateCoordinates(int row, int column) {
+        String columnCoordinate = "";
+        while (column > 0) {
+            column--;
+            int remainder = column % 26;
+            char letter = (char) (remainder + 65);
+            columnCoordinate = letter + columnCoordinate;
+            column = (column - remainder) / 26;
+        }
+        return columnCoordinate + Integer.toString(row);
+    }
+
 	private void mergeWithDummyCell(Cell newCell) {
-		Cell dummyCell = cellDictionary.get(newCell.getCoordinates());
-		LinkedList<String> dummyOutgoingEdges = dummyCell.getOutgoingEdges();
-		if (dummyOutgoingEdges.size() > 0) {
-			for (String edge : dummyOutgoingEdges) {
+		Cell dummyCell = cellsByCoordinates.get(newCell.getCoordinates());
+		LinkedList<String> dummyCellOutgoingEdges = dummyCell.getOutgoingEdges();
+		if (dummyCellOutgoingEdges.size() > 0) {
+			for (String edge : dummyCellOutgoingEdges) {
 				newCell.addOutgoingEdge(edge);
 			}
 		}
-		cellDictionary.put(newCell.getCoordinates(), newCell);
+		cellsByCoordinates.put(newCell.getCoordinates(), newCell);
 	}
 
 	private void addCellEdgesToGraph(Cell cell) {
-		LinkedList<String> incomingEdges = cell.parseValueExpressionForIncomingEdges();
-		if (incomingEdges.size() > 0) {
-			for (String edgeSource : incomingEdges) {
-				if (cellDictionary.containsKey(edgeSource)) {
-					Cell sourceCell = cellDictionary.get(edgeSource);
-					sourceCell.addOutgoingEdge(cell.getCoordinates());
-				} else {
-					Cell dummyCell = new Cell(edgeSource);
-					dummyCell.addOutgoingEdge(cell.getCoordinates());
-					cellDictionary.put(edgeSource, dummyCell);
-				}
+		LinkedList<String> incomingEdges = cell.parseValueExpressionReferences();
+		for (String sourceCoordinates : incomingEdges) {
+			if (cellsByCoordinates.containsKey(sourceCoordinates)) {
+				Cell sourceCell = cellsByCoordinates.get(sourceCoordinates);
+				sourceCell.addOutgoingEdge(cell.getCoordinates());
+			} else {
+				Cell dummyCell = new Cell(sourceCoordinates);
+				dummyCell.addOutgoingEdge(cell.getCoordinates());
+				cellsByCoordinates.put(sourceCoordinates, dummyCell);
 			}
 		}
 	}
 
 	private void removeOutgoingEdges(Cell sourceCell) {
-		if (sourceCell.getOutgoingEdges().size() > 0) {
-			for (String outgoingEdge : sourceCell.getOutgoingEdges()) {
-				Cell destinationCell = cellDictionary.get(outgoingEdge);
-				destinationCell.decrementIncomingEdgeCount();
-				if (destinationCell.getIncomingEdgeCount() == 0) {
-					evaluationOrder.add(destinationCell.getCoordinates());
-				}
+		for (String destinationCoordinates : sourceCell.getOutgoingEdges()) {
+			Cell destinationCell = cellsByCoordinates.get(destinationCoordinates);
+			destinationCell.decrementIncomingEdgeCount();
+			if (destinationCell.getIncomingEdgeCount() == 0) {
+				evaluationOrder.add(destinationCell.getCoordinates());
 			}
 		}
 	}
 
-
-	private void evaluateCellsInTopologicalOrder() {
-		int cellsEvaluatedCount = 0;
-		while (evaluationOrder.size() > 0) {
-			Cell currentCell = cellDictionary.get(evaluationOrder.pop());
-			replaceReferencesWithValues(currentCell);
-			double result = calculator.evaluate(currentCell.getValueExpression());
-			currentCell.setCalculatedValue(result);
-			removeOutgoingEdges(currentCell);
-			cellsEvaluatedCount++;
-		}
-		if (cellsEvaluatedCount < cellDictionary.size()) {
-			System.err.println("Error: Cyclic cell dependency. Process terminating.");
-			System.exit(1);
-		}
-	}
-
 	private void replaceReferencesWithValues(Cell cell) {
-		LinkedList<String> incomingEdges = cell.parseValueExpressionForIncomingEdges();
+		LinkedList<String> incomingEdges = cell.parseValueExpressionReferences();
 		if (incomingEdges.size() > 0) {
 			String valueExpression = cell.getValueExpression();
-			for (String reference : incomingEdges) {
-				Cell referenceCell = cellDictionary.get(reference);
-				valueExpression = valueExpression.replaceAll(reference, referenceCell.getCalculatedValueAsString());
+			for (String sourceCoordinates : incomingEdges) {
+				Cell sourceCell = cellsByCoordinates.get(sourceCoordinates);
+                String sourceCalculatedValue = sourceCell.getCalculatedValueAsString();
+				valueExpression = valueExpression.replaceAll(sourceCoordinates, sourceCalculatedValue);
 				cell.setValueExpression(valueExpression);
 			}
 		}
 	}
 
-
-
-	// Just for testing
-	public HashMap<String, Cell> getCellDictionary() {
-		return cellDictionary;
-	}
 }
